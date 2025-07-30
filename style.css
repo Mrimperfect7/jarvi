@@ -1,0 +1,44 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: radial-gradient(#101820, #000000);
+  color: #0ff;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.jarvis-container {
+  width: 90%;
+  max-width: 600px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 2px solid #0ff;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 0 15px #0ff;
+}
+
+.jarvis-header {
+  text-align: center;
+  font-size: 1.8em;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.jarvis-output {
+  height: 250px;
+  overflow-y: auto;
+  background: #020c11;
+  border: 1px solid #0ff;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+}
+
+.jarvis-status {
+  text-align: center;
+  font-size: 1em;
+  color: #ccc;
+}
