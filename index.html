@@ -2,165 +2,134 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>JARVIS AI Voice Assistant</title>
+  <title>JARVIS AI Bot</title>
   <style>
     body {
-      background: radial-gradient(#0f0f0f, #000000);
-      color: #00ffe1;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
       margin: 0;
-    }
-    .jarvis-container {
+      background: radial-gradient(ellipse at center, #0a0f1f 0%, #000 100%);
+      color: #00ffe7;
+      font-family: 'Orbitron', sans-serif;
       text-align: center;
-      max-width: 600px;
     }
     h1 {
+      margin-top: 30px;
       font-size: 3em;
-      color: #00ffe1;
-      text-shadow: 0 0 10px #00ffe1;
-      margin-bottom: 10px;
+      color: #00ffcc;
+      text-shadow: 0 0 20px #00ffcc;
+    }
+    #output {
+      margin: 30px auto;
+      width: 80%;
+      background: #111;
+      border-radius: 10px;
+      padding: 20px;
+      font-size: 1.2em;
+      min-height: 100px;
+      box-shadow: 0 0 20px #00ffcc66;
     }
     .status {
-      color: #bbb;
-      font-size: 1.1em;
       margin-top: 10px;
-    }
-    .log {
-      margin-top: 30px;
-      font-size: 0.95em;
-      max-height: 300px;
-      overflow-y: auto;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 10px;
-      border-radius: 8px;
+      font-size: 0.9em;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <div class="jarvis-container">
-    <h1>🧠 J.A.R.V.I.S</h1>
-    <div class="status" id="status">Initializing...</div>
-    <div class="log" id="log"></div>
-  </div>
+  <h1>JARVIS AI</h1>
+  <div id="output">Say "Jarvis, what’s the weather?" or ask anything…</div>
+  <div class="status">Listening...</div>
 
   <script>
-    const statusEl = document.getElementById('status');
-    const logEl = document.getElementById('log');
-
+    const apiKey = "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";  // Replace with your OpenAI API key
+    const output = document.getElementById('output');
     const synth = window.speechSynthesis;
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.continuous = true;
-    recognition.lang = 'en-US';
+    const reminders = JSON.parse(localStorage.getItem("jarvis_reminders") || "[]");
 
-    function log(text) {
-      const entry = document.createElement('div');
-      entry.textContent = text;
-      logEl.appendChild(entry);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
+    const maleVoicePref = () => {
+      const voices = speechSynthesis.getVoices();
+      return voices.find(v => v.name.includes("Male") || v.name.includes("Daniel") || v.name.includes("Google UK English Male")) || voices[0];
+    };
 
-    function speak(text) {
-      if (synth.speaking) synth.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "en-US";
-      utter.rate = 1.05;
-      utter.pitch = 1.2;
-      synth.speak(utter);
-      log("JARVIS: " + text);
-    }
+    const speak = (text) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = maleVoicePref();
+      synth.speak(utterance);
+    };
 
-    function respond(command) {
-      const lower = command.toLowerCase();
+    const processCommand = async (text) => {
+      const lower = text.toLowerCase();
 
-      if (lower.includes("hello") || lower.includes("hi")) {
-        speak("Hello, how can I assist you today?");
-      } else if (lower.includes("weather")) {
+      if (lower.includes("weather")) {
         fetch("https://ipapi.co/json")
           .then(res => res.json())
           .then(loc => {
-            fetch(`https://wttr.in/${loc.city}?format=3`)
-              .then(r => r.text())
-              .then(weather => speak("Current weather: " + weather))
-              .catch(() => speak("Sorry, I couldn't fetch weather info."));
+            const location = loc.city || "your location";
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true`)
+              .then(r => r.json())
+              .then(data => {
+                const temp = data.current_weather.temperature;
+                const response = `The current temperature in ${location} is ${temp}°C.`;
+                output.innerText = response;
+                speak(response);
+              });
           });
-      } else if (lower.includes("play music")) {
-        speak("Playing music from your browser.");
+      } else if (lower.startsWith("play music")) {
+        speak("Playing your favorite song.");
         const audio = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
         audio.play();
-      } else if (lower.includes("time")) {
-        const now = new Date();
-        speak(`It is currently ${now.toLocaleTimeString()}`);
-      } else if (lower.includes("date")) {
-        const now = new Date();
-        speak(`Today is ${now.toDateString()}`);
-      } else if (lower.includes("remind me")) {
-        const task = lower.replace("remind me", "").trim();
-        const date = new Date();
-        const reminder = {
-          task,
-          time: new Date(date.getTime() + 24 * 60 * 60 * 1000).toDateString() // remind tomorrow
-        };
-        const reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
-        reminders.push(reminder);
-        localStorage.setItem("reminders", JSON.stringify(reminders));
-        speak(`Okay, I will remind you to ${task} tomorrow.`);
-      } else if (lower.includes("who are you") || lower.includes("your name")) {
-        speak("I am JARVIS, your AI assistant.");
+      } else if (lower.startsWith("remind me to")) {
+        const reminder = text.replace(/remind me to/i, "").trim();
+        reminders.push({ text: reminder, date: new Date().toDateString() });
+        localStorage.setItem("jarvis_reminders", JSON.stringify(reminders));
+        const res = `Reminder saved: ${reminder}`;
+        output.innerText = res;
+        speak(res);
       } else {
-        speak("Let me search that...");
-        fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(command)}&format=json`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.AbstractText) speak(data.AbstractText);
-            else speak("Sorry, I have no information on that.");
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiKey
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [{ role: "user", content: text }],
+            temperature: 0.7
           })
-          .catch(() => speak("An error occurred while fetching the answer."));
+        });
+
+        const data = await res.json();
+        const reply = data.choices[0]?.message?.content || "Sorry, I didn't understand that.";
+        output.innerText = reply;
+        speak(reply);
       }
-    }
-
-    function checkReminders() {
-      const today = new Date().toDateString();
-      const reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
-      const todays = reminders.filter(r => r.time === today);
-      todays.forEach(r => speak(`Reminder: ${r.task}`));
-      localStorage.setItem("reminders", JSON.stringify(reminders.filter(r => r.time !== today)));
-    }
-
-    recognition.onstart = () => {
-      statusEl.textContent = "Listening...";
     };
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim();
-      log("You: " + transcript);
-      respond(transcript);
-    };
-
-    recognition.onerror = (e) => {
-      statusEl.textContent = "Error occurred: " + e.error;
-      recognition.stop();
-      setTimeout(() => recognition.start(), 2000);
-    };
-
-    recognition.onend = () => {
-      recognition.start();
-    };
-
+    // Check for reminders on load
     window.onload = () => {
-      document.body.addEventListener("click", () => {
-        const dummy = new SpeechSynthesisUtterance("");
-        synth.speak(dummy);
-      }, { once: true });
-
-      checkReminders();
-      recognition.start();
-      speak("System online. Awaiting your command.");
+      const today = new Date().toDateString();
+      reminders.forEach(r => {
+        if (r.date !== today) {
+          speak(`You asked me to remind you: ${r.text}`);
+        }
+      });
     };
+
+    // Continuous Speech Recognition
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.continuous = true;
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const last = event.results.length - 1;
+      const text = event.results[last][0].transcript.trim();
+      if (text.toLowerCase().startsWith("jarvis")) {
+        const command = text.replace(/^jarvis[, ]*/i, "");
+        processCommand(command);
+      }
+    };
+    recognition.onerror = (e) => console.error(e.error);
+    recognition.start();
   </script>
 </body>
 </html>
