@@ -1,135 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>JARVIS AI Bot</title>
+  <meta charset="UTF-8" />
+  <title>JARVIS AI Assistant</title>
   <style>
     body {
       margin: 0;
-      background: radial-gradient(ellipse at center, #0a0f1f 0%, #000 100%);
-      color: #00ffe7;
       font-family: 'Orbitron', sans-serif;
-      text-align: center;
+      background: radial-gradient(#0a0a0a, #1a1a1a);
+      color: #0ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
     }
     h1 {
       margin-top: 30px;
-      font-size: 3em;
-      color: #00ffcc;
-      text-shadow: 0 0 20px #00ffcc;
+      font-size: 3rem;
+      text-shadow: 0 0 10px #0ff;
     }
     #output {
-      margin: 30px auto;
-      width: 80%;
+      margin-top: 20px;
       background: #111;
-      border-radius: 10px;
       padding: 20px;
-      font-size: 1.2em;
-      min-height: 100px;
-      box-shadow: 0 0 20px #00ffcc66;
+      width: 80%;
+      max-width: 700px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px #0ff2;
+      overflow-y: auto;
+      height: 300px;
     }
-    .status {
+    #output p {
+      margin: 10px 0;
+    }
+    #status {
       margin-top: 10px;
-      font-size: 0.9em;
-      color: #888;
+      font-size: 0.9rem;
+      color: #ccc;
     }
   </style>
 </head>
 <body>
   <h1>JARVIS AI</h1>
-  <div id="output">Say "Jarvis, what’s the weather?" or ask anything…</div>
-  <div class="status">Listening...</div>
+  <div id="output"></div>
+  <div id="status">Listening...</div>
 
   <script>
-    const apiKey = "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";  // Replace with your OpenAI API key
-    const output = document.getElementById('output');
+    const OPENAI_API_KEY = "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";
+
+    const output = document.getElementById("output");
+    const status = document.getElementById("status");
+
     const synth = window.speechSynthesis;
-    const reminders = JSON.parse(localStorage.getItem("jarvis_reminders") || "[]");
+    let voice = null;
 
-    const maleVoicePref = () => {
-      const voices = speechSynthesis.getVoices();
-      return voices.find(v => v.name.includes("Male") || v.name.includes("Daniel") || v.name.includes("Google UK English Male")) || voices[0];
-    };
+    // Get male voice
+    function setMaleVoice() {
+      const voices = synth.getVoices();
+      voice = voices.find(v => /en-US|en-GB/.test(v.lang) && v.name.toLowerCase().includes("male")) ||
+              voices.find(v => /en-US/.test(v.lang));
+    }
 
-    const speak = (text) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.voice = maleVoicePref();
-      synth.speak(utterance);
-    };
+    // Load voices
+    window.speechSynthesis.onvoiceschanged = setMaleVoice;
 
-    const processCommand = async (text) => {
+    function speak(text) {
+      if (!voice) setMaleVoice();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.voice = voice;
+      utter.rate = 1;
+      synth.speak(utter);
+    }
+
+    async function getAIResponse(message) {
+      const messages = [
+        { role: "system", content: "You are JARVIS, a smart futuristic AI assistant like Iron Man's AI." },
+        { role: "user", content: message }
+      ];
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: messages,
+          temperature: 0.7
+        })
+      });
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content?.trim() || "Sorry, I couldn't process that.";
+      return reply;
+    }
+
+    const reminders = [];
+
+    function handleCommand(text) {
       const lower = text.toLowerCase();
 
       if (lower.includes("weather")) {
-        fetch("https://ipapi.co/json")
-          .then(res => res.json())
-          .then(loc => {
-            const location = loc.city || "your location";
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true`)
-              .then(r => r.json())
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            fetch(`https://api.weatherapi.com/v1/current.json?key=80fdf66c8c5344fba6d172946251107&q=${latitude},${longitude}`)
+              .then(res => res.json())
               .then(data => {
-                const temp = data.current_weather.temperature;
-                const response = `The current temperature in ${location} is ${temp}°C.`;
-                output.innerText = response;
-                speak(response);
+                const report = `Current temperature in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}`;
+                logOutput("JARVIS: " + report);
+                speak(report);
               });
           });
-      } else if (lower.startsWith("play music")) {
-        speak("Playing your favorite song.");
+        } else {
+          logOutput("JARVIS: Location not supported.");
+          speak("Sorry, I can't access your location.");
+        }
+        return;
+      }
+
+      if (lower.includes("remind me to")) {
+        const task = text.split("remind me to")[1]?.trim();
+        if (task) {
+          const today = new Date();
+          reminders.push({ task, date: today.getDate() + 1 });
+          const response = `Okay, I will remind you tomorrow to ${task}.`;
+          logOutput("JARVIS: " + response);
+          speak(response);
+        }
+        return;
+      }
+
+      if (lower.includes("play music")) {
         const audio = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
         audio.play();
-      } else if (lower.startsWith("remind me to")) {
-        const reminder = text.replace(/remind me to/i, "").trim();
-        reminders.push({ text: reminder, date: new Date().toDateString() });
-        localStorage.setItem("jarvis_reminders", JSON.stringify(reminders));
-        const res = `Reminder saved: ${reminder}`;
-        output.innerText = res;
-        speak(res);
-      } else {
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + apiKey
-          },
-          body: JSON.stringify({
-            model: "gpt-4",
-            messages: [{ role: "user", content: text }],
-            temperature: 0.7
-          })
-        });
-
-        const data = await res.json();
-        const reply = data.choices[0]?.message?.content || "Sorry, I didn't understand that.";
-        output.innerText = reply;
-        speak(reply);
+        speak("Playing music.");
+        return;
       }
-    };
 
-    // Check for reminders on load
-    window.onload = () => {
-      const today = new Date().toDateString();
+      getAIResponse(text).then(reply => {
+        logOutput("JARVIS: " + reply);
+        speak(reply);
+      });
+    }
+
+    function logOutput(text) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      output.appendChild(p);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    // Reminder check
+    function checkReminders() {
+      const today = new Date().getDate();
       reminders.forEach(r => {
-        if (r.date !== today) {
-          speak(`You asked me to remind you: ${r.text}`);
+        if (r.date === today) {
+          const msg = `Reminder: ${r.task}`;
+          logOutput("JARVIS: " + msg);
+          speak(msg);
         }
       });
-    };
+    }
 
-    // Continuous Speech Recognition
+    // Start continuous recognition
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.continuous = true;
-    recognition.lang = "en-US";
     recognition.interimResults = false;
+    recognition.lang = "en-US";
+
     recognition.onresult = (event) => {
-      const last = event.results.length - 1;
-      const text = event.results[last][0].transcript.trim();
-      if (text.toLowerCase().startsWith("jarvis")) {
-        const command = text.replace(/^jarvis[, ]*/i, "");
-        processCommand(command);
-      }
+      const transcript = event.results[event.results.length - 1][0].transcript.trim();
+      logOutput("You: " + transcript);
+      handleCommand(transcript);
     };
-    recognition.onerror = (e) => console.error(e.error);
+
+    recognition.onerror = (e) => {
+      status.textContent = "Error: " + e.error;
+      recognition.stop();
+      setTimeout(() => recognition.start(), 2000);
+    };
+
+    recognition.onend = () => {
+      recognition.start();
+    };
+
     recognition.start();
+    checkReminders();
   </script>
 </body>
 </html>
