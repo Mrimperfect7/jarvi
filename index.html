@@ -50,7 +50,7 @@
       utterance.volume = 1;
       const voices = speechSynthesis.getVoices();
       utterance.voice = voices.find(v => v.name.includes("Google") || v.lang === "en-US");
-      synth.cancel(); // stop previous speech
+      synth.cancel(); 
       synth.speak(utterance);
     }
 
@@ -74,14 +74,14 @@
       audio.play();
       speak("Playing your music now.");
     }
-     function saveReminder(message) {
+
+    function saveReminder(message) {
       const reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       reminders.push({ message, remindOn: tomorrow.toDateString() });
       localStorage.setItem("reminders", JSON.stringify(reminders));
       speak(`Reminder set for tomorrow: ${message}`);
-    });
     }
 
     function checkReminders() {
@@ -94,6 +94,7 @@
           output.innerHTML += `<br><b>Reminder:</b> ${r.message}`;
         });
       }
+    }
 
     function handleCommand(command) {
       command = command.toLowerCase();
@@ -108,15 +109,19 @@
         getLocationAndRespond();
       } else if (command.includes("play music")) {
         playMusic();
-      } else if (command.includes("stop")) {
-        speak("Shutting down. Goodbye.");
+      } else if (command.startsWith("remind me to")) {
+        const task = command.replace("remind me to", "").trim();
+        if (task) {
+          saveReminder(task);
+        } else {
+          speak("Please tell me what to remind you about.");
+        }
       } else {
         aiResponse(command);
       }
     }
 
     function aiResponse(query) {
-      // Simulated AI response – Replace this with your own backend if needed
       const responses = {
         "what is your name": "I am JARVIS, your virtual assistant.",
         "who created you": "I was created by a brilliant developer.",
@@ -147,6 +152,9 @@
         speak("Sorry, I didn't catch that.");
       };
     }
+
+    // 👇 Check reminder every time page is loaded
+    window.onload = checkReminders;
   </script>
 </body>
 </html>
