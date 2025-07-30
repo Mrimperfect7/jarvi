@@ -110,7 +110,7 @@
         localStorage.setItem("reminders", JSON.stringify(reminders));
         speak(`Okay, I will remind you to ${task} tomorrow.`);
       } else if (lower.includes("who are you") || lower.includes("your name")) {
-        speak("I am J.A.R.V.I.S, your AI assistant.");
+        speak("I am JARVIS, your AI assistant.");
       } else {
         speak("Let me search that...");
         fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(command)}&format=json`)
