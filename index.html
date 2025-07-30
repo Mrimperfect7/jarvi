@@ -2,45 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>JARVIS AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jarvis AI</title>
   <style>
     body {
-      background-color: #000;
-      color: #0ff;
-      font-family: 'Courier New', monospace;
-      padding: 30px;
+      background: black;
+      color: lime;
+      font-family: monospace;
       text-align: center;
-    }
-    #output {
-      margin-top: 20px;
-      font-size: 1.5em;
-      color: #0f0;
+      padding: 40px;
     }
     button {
-      padding: 15px 30px;
-      font-size: 1.2em;
-      background: #111;
-      color: #0ff;
-      border: 2px solid #0ff;
-      border-radius: 8px;
+      font-size: 18px;
+      padding: 10px 30px;
+      background: lime;
+      color: black;
+      border: none;
       cursor: pointer;
-      margin-top: 20px;
     }
-    button:hover {
-      background: #0ff;
-      color: #000;
+    #log {
+      margin-top: 30px;
+      font-size: 16px;
+      white-space: pre-wrap;
+      text-align: left;
+      max-width: 700px;
+      margin: 20px auto;
+      background: #111;
+      padding: 20px;
+      border: 1px solid lime;
     }
   </style>
 </head>
 <body>
-  <h1>JARVIS AI Voice Assistant</h1>
-  <p>Click the button and start speaking...</p>
-  <button onclick="startJarvis()">🎙️ Activate JARVIS</button>
-  <div id="output"></div>
+  <h1>🧠 Jarvis AI Assistant</h1>
+  <button onclick="startListening()">🎤 Activate Jarvis</button>
+  <div id="log"></div>
 
   <script>
-    const synth = window.speechSynthesis;
-    const output = document.getElementById("output");
+    let reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
+
+    // Trigger voice engine early
+    speechSynthesis.getVoices();
 
     function speak(text) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -48,85 +50,122 @@
       utterance.pitch = 1;
       utterance.rate = 1.1;
       utterance.volume = 1;
-      const voices = speechSynthesis.getVoices();
-      utterance.voice = voices.find(v => v.name.includes("Google") || v.lang === "en-US");
-      synth.cancel(); // stop previous speech
-      synth.speak(utterance);
+
+      function trySpeak() {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          utterance.voice = voices.find(v => v.name.includes("Google") || v.lang === "en-US");
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utterance);
+        } else {
+          setTimeout(trySpeak, 100);
+        }
+      }
+
+      trySpeak();
     }
 
-    function getLocationAndRespond() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          const response = `Your current location is latitude ${lat.toFixed(2)} and longitude ${lon.toFixed(2)}.`;
-          output.textContent = response;
-          speak(response);
+    function log(text) {
+      const logDiv = document.getElementById("log");
+      logDiv.textContent = text + "\n\n" + logDiv.textContent;
+    }
+
+    function remindIfNeeded() {
+      const today = new Date().toISOString().split("T")[0];
+      const pending = reminders.filter(r => r.date === today);
+      pending.forEach(r => {
+        speak("Reminder: " + r.text);
+        log("🔔 Reminder: " + r.text);
+      });
+    }
+
+    function setReminder(text) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const reminderDate = tomorrow.toISOString().split("T")[0];
+      reminders.push({ text, date: reminderDate });
+      localStorage.setItem("reminders", JSON.stringify(reminders));
+      speak("Reminder set for tomorrow.");
+      log("📌 Reminder saved: " + text);
+    }
+
+    function getLocationAndSpeakWeather() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(async pos => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const location = `Latitude: ${lat.toFixed(2)}, Longitude: ${lon.toFixed(2)}`;
+          speak("Your current location is " + location);
+          log("📍 Location: " + location);
         });
       } else {
-        output.textContent = "Geolocation is not supported.";
-        speak("Sorry, I cannot access your location.");
+        speak("Location access not supported.");
+        log("❌ Geolocation not available");
       }
+    }
+
+    async function askOpenAI(question) {
+      const apiKey = "YOUR_OPENAI_API_KEY"; // Replace with your real key
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: question }]
+        })
+      });
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn’t understand.";
+      speak(reply);
+      log("🤖 " + reply);
     }
 
     function playMusic() {
-      let audio = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+      const audio = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
       audio.play();
-      speak("Playing your music now.");
+      speak("Playing music now.");
+      log("🎵 Music started.");
     }
 
-    function handleCommand(command) {
-      command = command.toLowerCase();
-      output.textContent = `You said: "${command}"`;
-
-      if (command.includes("hello") || command.includes("hi")) {
-        speak("Hello sir. How can I help you today?");
-      } else if (command.includes("time")) {
-        const now = new Date();
-        speak(`Current time is ${now.getHours()} ${now.getMinutes()}`);
-      } else if (command.includes("location")) {
-        getLocationAndRespond();
-      } else if (command.includes("play music")) {
-        playMusic();
-      } else if (command.includes("stop")) {
-        speak("Shutting down. Goodbye.");
-      } else {
-        aiResponse(command);
-      }
-    }
-
-    function aiResponse(query) {
-      // Simulated AI response – Replace this with your own backend if needed
-      const responses = {
-        "what is your name": "I am JARVIS, your virtual assistant.",
-        "who created you": "I was created by a brilliant developer.",
-        "tell me a joke": "Why did the computer go to therapy? Because it had too many bytes of emotional baggage!"
-      };
-
-      let reply = responses[query.toLowerCase()] || "I didn't understand that, but I'm still learning.";
-      output.textContent = reply;
-      speak(reply);
-    }
-
-    function startJarvis() {
+    function startListening() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
       recognition.lang = "en-US";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
+      speak("Hello, I am Jarvis. How can I help you?");
       recognition.start();
-      speak("Listening...");
 
-      recognition.onresult = function (event) {
-        const transcript = event.results[0][0].transcript;
-        handleCommand(transcript);
+      recognition.onresult = async function(event) {
+        const command = event.results[0][0].transcript.toLowerCase().trim();
+        log("🎙️ You said: " + command);
+
+        if (command.includes("location")) {
+          getLocationAndSpeakWeather();
+        } else if (command.includes("play music")) {
+          playMusic();
+        } else if (command.startsWith("remind me to")) {
+          const reminderText = command.replace("remind me to", "").trim();
+          setReminder(reminderText);
+        } else if (command.includes("who are you") || command.includes("what is your name")) {
+          speak("I am Jarvis, your AI assistant.");
+        } else {
+          await askOpenAI(command);
+        }
       };
 
-      recognition.onerror = function (event) {
-        output.textContent = "Error: " + event.error;
-        speak("Sorry, I didn't catch that.");
+      recognition.onerror = function(event) {
+        speak("There was an error with speech recognition.");
+        log("❌ Error: " + event.error);
       };
     }
+
+    // Show reminders on load
+    window.onload = remindIfNeeded;
   </script>
 </body>
 </html>
