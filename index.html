@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>J.A.R.V.I.S. - AI Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Orbitron', sans-serif;
+      background: radial-gradient(#000, #060e1a);
+      color: #00f7ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #00f7ff;
+      text-shadow: 0 0 20px #00f7ff;
+    }
+
+    .jarvis-panel {
+      background: rgba(0, 255, 255, 0.1);
+      border: 2px solid #00f7ff;
+      padding: 20px;
+      width: 400px;
+      border-radius: 20px;
+      box-shadow: 0 0 40px #00f7ff33;
+      text-align: center;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #00f7ff;
+      color: black;
+      border: none;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #00cce7;
+    }
+
+    .response {
+      margin-top: 20px;
+      font-size: 1.1rem;
+      min-height: 60px;
+    }
+
+    .glow {
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      0% { text-shadow: 0 0 5px #00f7ff; }
+      100% { text-shadow: 0 0 20px #00f7ff; }
+    }
+
+    .listening {
+      color: #ffcc00;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="glow">J.A.R.V.I.S. Voice Assistant</h1>
+  <div class="jarvis-panel">
+    <button onclick="startListening()">🎤 Speak to JARVIS</button>
+    <div class="response" id="responseText">Awaiting your command...</div>
+  </div>
+
+  <script>
+    const responseText = document.getElementById('responseText');
+
+    function speak(text) {
+      const synth = window.speechSynthesis;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.voice = synth.getVoices().find(v => v.name.includes("Daniel") || v.name.includes("Zira")) || synth.getVoices()[0];
+      utter.pitch = 1;
+      utter.rate = 1;
+      synth.speak(utter);
+    }
+
+    function startListening() {
+      if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        alert("Your browser doesn't support Speech Recognition.");
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      responseText.innerHTML = '<span class="listening">Listening...</span>';
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const command = event.results[0][0].transcript.toLowerCase();
+        handleCommand(command);
+      };
+
+      recognition.onerror = (event) => {
+        responseText.innerHTML = 'Error: ' + event.error;
+      };
+
+      recognition.onend = () => {
+        if (responseText.innerHTML === '<span class="listening">Listening...</span>') {
+          responseText.innerHTML = "No speech detected.";
+        }
+      };
+    }
+
+    function handleCommand(command) {
+      let response = "Sorry, I didn't understand that.";
+
+      if (command.includes("hello") || command.includes("hi")) {
+        response = "Hello sir. How may I help you?";
+      } else if (command.includes("your name")) {
+        response = "I am J.A.R.V.I.S, your virtual assistant.";
+      } else if (command.includes("time")) {
+        response = "The time is " + new Date().toLocaleTimeString();
+      } else if (command.includes("date")) {
+        response = "Today is " + new Date().toLocaleDateString();
+      } else if (command.includes("open google")) {
+        response = "Opening Google.";
+        window.open("https://google.com", "_blank");
+      } else if (command.includes("shutdown")) {
+        response = "Initiating shutdown protocol. Goodbye.";
+      } else if (command.includes("who created you")) {
+        response = "I was created by Tony Stark. Just kidding. I was built by a developer.";
+      }
+
+      responseText.textContent = "You said: " + command + "\n\nJARVIS: " + response;
+      speak(response);
+    }
+  </script>
+</body>
+</html>
