@@ -1,195 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>J.A.R.V.I.S. Smart Assistant</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <title>JARVIS AI</title>
   <style>
     body {
-      font-family: 'Orbitron', sans-serif;
-      background: radial-gradient(#000, #060e1a);
-      color: #00f7ff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    h1 {
-      text-shadow: 0 0 20px #00f7ff;
-    }
-
-    .panel {
-      border: 2px solid #00f7ff;
-      padding: 20px;
-      width: 420px;
-      border-radius: 20px;
-      background: rgba(0, 255, 255, 0.1);
+      background-color: #000;
+      color: #0ff;
+      font-family: 'Courier New', monospace;
+      padding: 30px;
       text-align: center;
-      box-shadow: 0 0 40px #00f7ff44;
     }
-
+    #output {
+      margin-top: 20px;
+      font-size: 1.5em;
+      color: #0f0;
+    }
     button {
-      margin-top: 20px;
-      padding: 12px 25px;
-      font-weight: bold;
-      border: none;
-      background: #00f7ff;
-      color: black;
-      border-radius: 10px;
+      padding: 15px 30px;
+      font-size: 1.2em;
+      background: #111;
+      color: #0ff;
+      border: 2px solid #0ff;
+      border-radius: 8px;
       cursor: pointer;
-    }
-
-    .response {
       margin-top: 20px;
-      font-size: 1rem;
-      min-height: 70px;
-      white-space: pre-wrap;
     }
-
-    .glow {
-      animation: glow 2s infinite alternate;
-    }
-
-    @keyframes glow {
-      0% { text-shadow: 0 0 10px #00f7ff; }
-      100% { text-shadow: 0 0 30px #00f7ff; }
+    button:hover {
+      background: #0ff;
+      color: #000;
     }
   </style>
 </head>
 <body>
-  <h1 class="glow">J.A.R.V.I.S. AI</h1>
-  <div class="panel">
-    <button onclick="startListening()">🎤 Talk to JARVIS</button>
-    <div class="response" id="responseText">Awaiting your command...</div>
-  </div>
+  <h1>JARVIS AI Voice Assistant</h1>
+  <p>Click the button and start speaking...</p>
+  <button onclick="startJarvis()">🎙️ Activate JARVIS</button>
+  <div id="output"></div>
 
   <script>
-    const responseText = document.getElementById('responseText');
-    let selectedVoice = null;
-
-    // Load voices
-    function loadVoices() {
-      const voices = speechSynthesis.getVoices();
-      selectedVoice = voices.find(voice => voice.name.includes("Daniel") || voice.name.includes("Zira")) || voices[0];
-    }
-
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    const synth = window.speechSynthesis;
+    const output = document.getElementById("output");
 
     function speak(text) {
-      const utter = new SpeechSynthesisUtterance(text);
-      if (selectedVoice) utter.voice = selectedVoice;
-      utter.pitch = 1;
-      utter.rate = 1;
-      speechSynthesis.speak(utter);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.pitch = 1;
+      utterance.rate = 1.1;
+      utterance.volume = 1;
+      const voices = speechSynthesis.getVoices();
+      utterance.voice = voices.find(v => v.name.includes("Google") || v.lang === "en-US");
+      synth.cancel(); // stop previous speech
+      synth.speak(utterance);
     }
 
-    function startListening() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("Speech Recognition not supported.");
-        return;
+    function getLocationAndRespond() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const response = `Your current location is latitude ${lat.toFixed(2)} and longitude ${lon.toFixed(2)}.`;
+          output.textContent = response;
+          speak(response);
+        });
+      } else {
+        output.textContent = "Geolocation is not supported.";
+        speak("Sorry, I cannot access your location.");
       }
+    }
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      responseText.innerHTML = 'Listening...';
-      recognition.start();
-
-      recognition.onresult = (event) => {
-        const command = event.results[0][0].transcript.toLowerCase();
-        handleCommand(command);
-      };
-
-      recognition.onerror = (event) => {
-        responseText.innerText = "Error: " + event.error;
-      };
+    function playMusic() {
+      let audio = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+      audio.play();
+      speak("Playing your music now.");
     }
 
     function handleCommand(command) {
-      let response = "I did not understand that.";
+      command = command.toLowerCase();
+      output.textContent = `You said: "${command}"`;
 
       if (command.includes("hello") || command.includes("hi")) {
-        response = "Hello sir, how may I help you?";
+        speak("Hello sir. How can I help you today?");
+      } else if (command.includes("time")) {
+        const now = new Date();
+        speak(`Current time is ${now.getHours()} ${now.getMinutes()}`);
+      } else if (command.includes("location")) {
+        getLocationAndRespond();
+      } else if (command.includes("play music")) {
+        playMusic();
+      } else if (command.includes("stop")) {
+        speak("Shutting down. Goodbye.");
+      } else {
+        aiResponse(command);
       }
-      else if (command.includes("your name")) {
-        response = "I am J.A.R.V.I.S, your personal AI assistant.";
-      }
-      else if (command.includes("time")) {
-        response = "The time is " + new Date().toLocaleTimeString();
-      }
-      else if (command.includes("date")) {
-        response = "Today is " + new Date().toLocaleDateString();
-      }
-      else if (command.includes("open google")) {
-        response = "Opening Google.";
-        window.open("https://google.com", "_blank");
-      }
-      else if (command.includes("open youtube")) {
-        response = "Opening YouTube.";
-        window.open("https://youtube.com", "_blank");
-      }
-      else if (command.includes("search for") && command.includes("on youtube")) {
-        const query = command.split("search for")[1].split("on youtube")[0].trim();
-        response = "Searching YouTube for " + query;
-        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
-      }
-      else if (command.includes("search for") && command.includes("on google")) {
-        const query = command.split("search for")[1].split("on google")[0].trim();
-        response = "Searching Google for " + query;
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
-      }
-      else if (command.includes("calculate")) {
-        try {
-          const expression = command.replace("calculate", "").trim().replace("plus", "+").replace("minus", "-").replace("into", "*").replace("by", "/");
-          const result = eval(expression);
-          response = `The result is ${result}`;
-        } catch {
-          response = "Sorry, I couldn't calculate that.";
-        }
-      }
-      else if (command.includes("weather")) {
-        fetchWeather();
-        return;
-      }
-      else if (command.includes("joke")) {
-        const jokes = [
-          "Why do Java developers wear glasses? Because they don't C#.",
-          "How many programmers does it take to change a light bulb? None, it's a hardware problem.",
-          "Why was the computer cold? Because it forgot to close its windows."
-        ];
-        response = jokes[Math.floor(Math.random() * jokes.length)];
-      }
-      else if (command.includes("version")) {
-        response = "I am running version 2.5 beta of the JARVIS interface.";
-      }
-
-      responseText.innerText = `You: ${command}\n\nJARVIS: ${response}`;
-      speak(response);
     }
 
-    function fetchWeather() {
-      const apiKey = "80f52081a3af17ab88cf4cb1d093ec1b"; // 🔥 Insert your OpenWeatherMap API key here
-      const city = "DELHI"; // You can also detect city dynamically
-      fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
-        .then(res => res.json())
-        .then(data => {
-          const temp = data.main.temp;
-          const desc = data.weather[0].description;
-          const response = `Current weather in ${city} is ${desc} with temperature ${temp} degree Celsius.`;
-          responseText.innerText = response;
-          speak(response);
-        })
-        .catch(() => {
-          const err = "Sorry, I couldn't fetch the weather.";
-          responseText.innerText = err;
-          speak(err);
-        });
+    function aiResponse(query) {
+      // Simulated AI response – Replace this with your own backend if needed
+      const responses = {
+        "what is your name": "I am JARVIS, your virtual assistant.",
+        "who created you": "I was created by a brilliant developer.",
+        "tell me a joke": "Why did the computer go to therapy? Because it had too many bytes of emotional baggage!"
+      };
+
+      let reply = responses[query.toLowerCase()] || "I didn't understand that, but I'm still learning.";
+      output.textContent = reply;
+      speak(reply);
+    }
+
+    function startJarvis() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+      speak("Listening...");
+
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        handleCommand(transcript);
+      };
+
+      recognition.onerror = function (event) {
+        output.textContent = "Error: " + event.error;
+        speak("Sorry, I didn't catch that.");
+      };
     }
   </script>
 </body>
